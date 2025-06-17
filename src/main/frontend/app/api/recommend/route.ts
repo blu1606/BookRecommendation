@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
 export async function POST(request: NextRequest) {
   try {
     const { prompt, sessionChatId } = await request.json()
@@ -9,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call the backend API with sessionChatId
-    const response = await fetch("http://localhost:8080/api/books/recommend", {
+    const response = await fetch(`${API_BASE_URL}/api/books/recommend`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
