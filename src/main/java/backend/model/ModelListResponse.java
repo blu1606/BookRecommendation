@@ -1,4 +1,4 @@
-package dev.danvega.flash;
+package backend.model;
 
 import java.util.List;
 
