@@ -2,7 +2,10 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "next-themes"
+import { AnimationProvider } from "@/components/AnimationProvider"
 import "./globals.css"
+import "./animations.css"
+import "./production-animations.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -56,7 +59,9 @@ export default function RootLayout({
     <html lang="vi" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          {children}
+          <AnimationProvider>
+            {children}
+          </AnimationProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -51,7 +51,20 @@ const config: Config = {
     'book-glow',
     'social-icon-hover',
     'logo-container',
-    'line-clamp-2'
+    'line-clamp-2',
+    // Additional animation patterns
+    {
+      pattern: /animate-.*/,
+    },
+    {
+      pattern: /hover:.*/,
+    },
+    {
+      pattern: /transition-.*/,
+    },
+    {
+      pattern: /duration-.*/,
+    }
   ],
   theme: {
   	extend: {
