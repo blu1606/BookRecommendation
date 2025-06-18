@@ -2,7 +2,7 @@
 
 import { Github, Facebook } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "./theme-toggle"
+import { SimpleThemeToggle } from "./simple-theme-toggle"
 
 export function SocialLinks() {
   const socialLinks = [
@@ -32,7 +32,7 @@ export function SocialLinks() {
 
   return (
     <div className="flex items-center gap-2">
-      <ThemeToggle />
+      <SimpleThemeToggle />
       {socialLinks.map((link) => (
         <Button
           key={link.name}

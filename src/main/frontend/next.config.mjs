@@ -8,10 +8,19 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
-    domains: ['localhost', 'vercel.app'],
   },
-  // Trailing slash for better compatibility
-  trailingSlash: true,
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: 'https://book-reco-be.onrender.com' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+    ]
+  },
 }
 
 export default nextConfig

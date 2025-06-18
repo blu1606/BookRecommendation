@@ -11,10 +11,12 @@ import { Card } from "@/components/ui/card"
 import { Send, Bot, User, Loader2 } from "lucide-react"
 import { BookDecoration } from "@/components/book-decoration"
 import { SocialLinks } from "@/components/social-links"
-import { MarkdownRenderer } from "@/components/MarkdownRenderer"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar, type ChatSession } from "@/components/app-sidebar"
 import Image from "next/image"
+import { ClientThemeWrapper } from "@/components/client-theme-wrapper"
+import { MarkdownRenderer } from "@/components/markdown-renderer"
+import { ThemeTest } from "@/components/theme-test"
 
 interface Message {
   id: string
@@ -45,6 +47,7 @@ export default function BookRecommendationChat() {
   const [showSuggestions, setShowSuggestions] = useState(true)
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [showDebug, setShowDebug] = useState(false)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -112,6 +115,16 @@ export default function BookRecommendationChat() {
     if (savedApiKey) {
       setApiKey(savedApiKey)
     }
+
+    // Debug mode toggle
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === "D") {
+        setShowDebug((prev) => !prev)
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
 
   // Save sessions to localStorage whenever sessions change
@@ -224,11 +237,18 @@ export default function BookRecommendationChat() {
         }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to get recommendation")
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        console.error("Failed to parse response:", parseError)
+        throw new Error("Invalid response from server")
       }
 
-      const data = await response.json()
+      if (!response.ok) {
+        console.error("API request failed:", response.status, data)
+        throw new Error(data.error || `HTTP ${response.status} error`)
+      }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -242,13 +262,24 @@ export default function BookRecommendationChat() {
       updateCurrentSession(finalMessages)
     } catch (error) {
       console.error("Error:", error)
-      const errorMessage: Message = {
+
+      let errorMessage = "Xin lỗi, đã có lỗi xảy ra khi kết nối với server. Vui lòng thử lại sau."
+
+      if (error instanceof Error) {
+        if (error.message.includes("Invalid response")) {
+          errorMessage = "Xin lỗi, server trả về dữ liệu không hợp lệ. Vui lòng thử lại sau."
+        } else if (error.message.includes("HTTP")) {
+          errorMessage = "Xin lỗi, có lỗi kết nối với server. Vui lòng kiểm tra API key và thử lại."
+        }
+      }
+
+      const assistantErrorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "Xin lỗi, đã có lỗi xảy ra khi kết nối với server. Vui lòng thử lại sau.",
+        content: errorMessage,
         role: "assistant",
         timestamp: new Date(),
       }
-      const finalMessages = [...newMessages, errorMessage]
+      const finalMessages = [...newMessages, assistantErrorMessage]
       setMessages(finalMessages)
       updateCurrentSession(finalMessages)
     } finally {
@@ -267,154 +298,161 @@ export default function BookRecommendationChat() {
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        apiKey={apiKey}
-        onSessionSelect={handleSessionSelect}
-        onNewSession={createNewSession}
-        onDeleteSession={handleDeleteSession}
-        onApiKeyChange={handleApiKeyChange}
-      />
-      <SidebarInset>
-        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-gray-900 dark:via-gray-800 dark:to-black relative overflow-hidden">
-          {/* Background Book Decorations */}
-          <BookDecoration />
+    <ClientThemeWrapper>
+      <SidebarProvider>
+        <AppSidebar
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          apiKey={apiKey}
+          onSessionSelect={handleSessionSelect}
+          onNewSession={createNewSession}
+          onDeleteSession={handleDeleteSession}
+          onApiKeyChange={handleApiKeyChange}
+        />
+        <SidebarInset>
+          <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-gray-900 dark:via-gray-800 dark:to-black relative overflow-hidden">
+            {/* Background Book Decorations */}
+            <BookDecoration />
 
-          {/* Header */}
-          <div className="border-b border-amber-200 dark:border-cyan-400/30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-10">
-            <div className="max-w-4xl mx-auto px-4 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-white dark:bg-gray-800 shadow-md border-2 border-amber-200 dark:border-cyan-400 logo-container cursor-pointer">
-                    <Image
-                      src="/logo.svg"
-                      alt="Blue Book AI Logo"
-                      width={40}
-                      height={40}
-                      className="w-full h-full object-cover"
-                    />
+            {/* Header - Reduced height */}
+            <div className="border-b border-amber-200 dark:border-cyan-400/30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-10">
+              <div className="max-w-4xl mx-auto px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-8 h-8 rounded-full overflow-hidden bg-white dark:bg-gray-800 shadow-md border-2 border-amber-200 dark:border-cyan-400 logo-container cursor-pointer">
+                      <Image
+                        src="/logo.svg"
+                        alt="Blue Book AI Logo"
+                        width={32}
+                        height={32}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h1 className="text-lg font-bold text-amber-900 dark:text-cyan-300">Blue Book AI</h1>
+                      <p className="text-xs text-amber-700 dark:text-cyan-400">Trợ lý AI gợi ý sách thông minh</p>
+                    </div>
                   </div>
-                  <div>
-                    <h1 className="text-xl font-bold text-amber-900 dark:text-cyan-300">Blue Book AI</h1>
-                    <p className="text-sm text-amber-700 dark:text-cyan-400">Trợ lý AI gợi ý sách thông minh</p>
-                  </div>
+                  <SocialLinks />
                 </div>
-                <SocialLinks />
               </div>
             </div>
-          </div>
 
-          {/* Chat Area */}
-          <div className="max-w-4xl mx-auto px-4 py-6 h-[calc(100vh-140px)] flex flex-col">
-            <ScrollArea ref={scrollAreaRef} className="flex-1 pr-4">
-              <div className="space-y-6">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    {message.role === "assistant" && (
+            {/* Chat Area - Adjusted height calculation */}
+            <div className="max-w-4xl mx-auto px-4 py-4 h-[calc(100vh-120px)] flex flex-col">
+              <ScrollArea ref={scrollAreaRef} className="flex-1 pr-4">
+                <div className="space-y-6">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      {message.role === "assistant" && (
+                        <div className="flex-shrink-0 w-8 h-8 bg-amber-100 dark:bg-cyan-900/50 rounded-full flex items-center justify-center">
+                          <Bot className="h-4 w-4 text-amber-700 dark:text-cyan-400" />
+                        </div>
+                      )}
+
+                      <Card
+                        className={`max-w-[80%] p-4 ${
+                          message.role === "user"
+                            ? "bg-amber-600 dark:bg-cyan-600 text-white border-amber-600 dark:border-cyan-600"
+                            : "bg-white dark:bg-gray-800 border-amber-200 dark:border-cyan-400/30 shadow-sm dark:text-cyan-100"
+                        }`}
+                      >
+                        {message.role === "assistant" ? (
+                          <MarkdownRenderer content={message.content} className="text-sm leading-relaxed" />
+                        ) : (
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                        )}
+                        <div
+                          className={`text-xs mt-2 ${
+                            message.role === "user"
+                              ? "text-amber-100 dark:text-cyan-100"
+                              : "text-amber-600 dark:text-cyan-400"
+                          }`}
+                        >
+                          {message.timestamp.toLocaleTimeString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                      </Card>
+
+                      {message.role === "user" && (
+                        <div className="flex-shrink-0 w-8 h-8 bg-amber-600 dark:bg-cyan-600 rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {isLoading && (
+                    <div className="flex gap-3 justify-start">
                       <div className="flex-shrink-0 w-8 h-8 bg-amber-100 dark:bg-cyan-900/50 rounded-full flex items-center justify-center">
                         <Bot className="h-4 w-4 text-amber-700 dark:text-cyan-400" />
                       </div>
-                    )}
-
-                    <Card
-                      className={`max-w-[80%] p-4 ${
-                        message.role === "user"
-                          ? "bg-amber-600 dark:bg-cyan-600 text-white border-amber-600 dark:border-cyan-600"
-                          : "bg-white dark:bg-gray-800 border-amber-200 dark:border-cyan-400/30 shadow-sm dark:text-cyan-100"
-                      }`}
-                    >
-                      {message.role === "assistant" ? (
-                        <MarkdownRenderer content={message.content} />
-                      ) : (
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
-                      )}
-                      <div
-                        className={`text-xs mt-2 ${
-                          message.role === "user"
-                            ? "text-amber-100 dark:text-cyan-100"
-                            : "text-amber-600 dark:text-cyan-400"
-                        }`}
-                      >
-                        {message.timestamp.toLocaleTimeString("vi-VN", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    </Card>
-
-                    {message.role === "user" && (
-                      <div className="flex-shrink-0 w-8 h-8 bg-amber-600 dark:bg-cyan-600 rounded-full flex items-center justify-center">
-                        <User className="h-4 w-4 text-white" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {isLoading && (
-                  <div className="flex gap-3 justify-start">
-                    <div className="flex-shrink-0 w-8 h-8 bg-amber-100 dark:bg-cyan-900/50 rounded-full flex items-center justify-center">
-                      <Bot className="h-4 w-4 text-amber-700 dark:text-cyan-400" />
+                      <Card className="bg-white dark:bg-gray-800 border-amber-200 dark:border-cyan-400/30 shadow-sm p-4">
+                        <div className="flex items-center gap-2 text-amber-700 dark:text-cyan-400">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Đang tìm kiếm gợi ý sách cho bạn...</span>
+                        </div>
+                      </Card>
                     </div>
-                    <Card className="bg-white dark:bg-gray-800 border-amber-200 dark:border-cyan-400/30 shadow-sm p-4">
-                      <div className="flex items-center gap-2 text-amber-700 dark:text-cyan-400">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm">Đang tìm kiếm gợi ý sách cho bạn...</span>
-                      </div>
-                    </Card>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-
-            {/* Suggested Prompts */}
-            {showSuggestions && messages.length <= 1 && (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-amber-800 dark:text-cyan-300 mb-3">💡 Gợi ý câu hỏi:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {suggestedPrompts.map((prompt) => (
-                    <Button
-                      key={prompt.id}
-                      variant="outline"
-                      className="h-auto p-3 text-left justify-start border-amber-200 dark:border-cyan-400/30 hover:border-amber-400 dark:hover:border-cyan-400 hover:bg-amber-50 dark:hover:bg-cyan-900/20 transition-colors dark:bg-gray-800 dark:text-cyan-100"
-                      onClick={() => handleSuggestedPrompt(prompt.text)}
-                    >
-                      <span className="mr-2 text-lg">{prompt.icon}</span>
-                      <span className="text-sm text-amber-800 dark:text-cyan-300 line-clamp-2">{prompt.text}</span>
-                    </Button>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
+              </ScrollArea>
 
-            {/* Input Area */}
-            <div className="mt-4 border-t border-amber-200 dark:border-cyan-400/30 pt-4">
-              <form onSubmit={handleSubmit} className="flex gap-2">
-                <Input
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Mô tả loại sách bạn muốn tìm..."
-                  className="flex-1 border-amber-200 dark:border-cyan-400/30 focus:border-amber-400 dark:focus:border-cyan-400 focus:ring-amber-400 dark:focus:ring-cyan-400 dark:bg-gray-800 dark:text-cyan-100"
-                  disabled={isLoading}
-                />
-                <Button
-                  type="submit"
-                  disabled={!input.trim() || isLoading}
-                  className="bg-amber-600 hover:bg-amber-700 dark:bg-cyan-600 dark:hover:bg-cyan-700 text-white px-4"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </Button>
-              </form>
-              <p className="text-xs text-amber-600 dark:text-cyan-400 mt-2 text-center">Nhấn Enter để gửi tin nhắn</p>
+              {/* Suggested Prompts */}
+              {showSuggestions && messages.length <= 1 && (
+                <div className="mb-3">
+                  <h3 className="text-sm font-medium text-amber-800 dark:text-cyan-300 mb-2">💡 Gợi ý câu hỏi:</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {suggestedPrompts.map((prompt) => (
+                      <Button
+                        key={prompt.id}
+                        variant="outline"
+                        className="h-auto p-2 text-left justify-start border-amber-200 dark:border-cyan-400/30 hover:border-amber-400 dark:hover:border-cyan-400 hover:bg-amber-50 dark:hover:bg-cyan-900/20 transition-colors dark:bg-gray-800 dark:text-cyan-100"
+                        onClick={() => handleSuggestedPrompt(prompt.text)}
+                      >
+                        <span className="mr-2 text-base">{prompt.icon}</span>
+                        <span className="text-xs text-amber-800 dark:text-cyan-300 line-clamp-2">{prompt.text}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Input Area - Reduced padding */}
+              <div className="mt-3 border-t border-amber-200 dark:border-cyan-400/30 pt-3">
+                <form onSubmit={handleSubmit} className="flex gap-2">
+                  <Input
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Mô tả loại sách bạn muốn tìm..."
+                    className="flex-1 h-10 border-amber-200 dark:border-cyan-400/30 focus:border-amber-400 dark:focus:border-cyan-400 focus:ring-amber-400 dark:focus:ring-cyan-400 dark:bg-gray-800 dark:text-cyan-100"
+                    disabled={isLoading}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={!input.trim() || isLoading}
+                    className="h-10 bg-amber-600 hover:bg-amber-700 dark:bg-cyan-600 dark:hover:bg-cyan-700 text-white px-4"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
+                </form>
+                <p className="text-xs text-amber-600 dark:text-cyan-400 mt-1 text-center">
+                  Nhấn Enter để gửi tin nhắn • Ctrl+Shift+D để debug
+                </p>
+              </div>
             </div>
+
+            {/* Debug Panel */}
+            {showDebug && <ThemeTest />}
           </div>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+        </SidebarInset>
+      </SidebarProvider>
+    </ClientThemeWrapper>
   )
 }
