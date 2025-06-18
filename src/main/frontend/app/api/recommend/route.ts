@@ -4,10 +4,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, sessionChatId } = await request.json()
+    const { prompt, sessionChatId, apiKey } = await request.json()
 
-    if (!prompt || !sessionChatId) {
-      return NextResponse.json({ error: "Prompt and sessionChatId are required" }, { status: 400 })
+    if (!prompt || !sessionChatId || !apiKey) {
+      return NextResponse.json({ error: "Prompt, sessionChatId, and apiKey are required" }, { status: 400 })
     }
 
     // Call the backend API with sessionChatId
@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         prompt,

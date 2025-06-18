@@ -14,7 +14,8 @@
 
 - 🤖 **AI Chat Thông Minh**: Tương tác với AI để nhận gợi ý sách cá nhân hóa
 - 📚 **Gợi Ý Sách**: Phân tích sở thích và đưa ra danh sách sách phù hợp
-- 💬 **Chat Session**: Lưu trữ lịch sử trò chuyện theo phiên làm việc
+- 💬 **Chat Session Management**: Quản lý nhiều phiên chat với localStorage
+- 🔑 **User API Key Management**: Người dùng tự nhập và quản lý API key
 - 🎨 **Giao Diện Hiện Đại**: UI/UX đẹp mắt với Next.js và Tailwind CSS
 - 📱 **Responsive Design**: Tương thích với mọi thiết bị
 - 🔄 **Real-time**: Cập nhật gợi ý theo thời gian thực
@@ -26,6 +27,7 @@
 - **AI Integration**: Google Gemini API với OpenAI-compatible endpoints
 - **Session Management**: Quản lý phiên chat với in-memory storage
 - **RESTful API**: Endpoints cho chat và gợi ý sách
+- **API Key Validation**: Xác thực API key từ request header
 - **Package Structure**: Tổ chức code theo mô hình MVC
 
 ### Frontend (Next.js)
@@ -33,6 +35,8 @@
 - **UI Library**: React 18 + TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui components
 - **Markdown Rendering**: Hiển thị phản hồi AI dưới dạng markdown
+- **Session Management**: Quản lý nhiều phiên chat với localStorage
+- **API Key Management**: Giao diện nhập và lưu trữ API key
 - **Responsive**: Tối ưu cho mobile và desktop
 
 ## Yêu Cầu Hệ Thống
@@ -45,7 +49,7 @@
 
 ## Cài Đặt và Chạy Dự Án
 
-### 1. Cấu Hình API Key
+### 1. Lấy Gemini API Key
 
 Trước tiên, bạn cần lấy Gemini API key:
 
@@ -53,20 +57,9 @@ Trước tiên, bạn cần lấy Gemini API key:
 2. Tạo tài khoản nếu chưa có
 3. Vào phần API keys
 4. Tạo API key mới
-5. Sao chép API key
+5. Sao chép API key (bắt đầu bằng "AIza")
 
-### 2. Cấu Hình Backend
-
-Cập nhật file `src/main/resources/application.properties`:
-
-```properties
-spring.ai.openai.api-key=YOUR_GEMINI_API_KEY
-spring.ai.openai.chat.base-url=https://generativelanguage.googleapis.com
-spring.ai.openai.chat.completions-path=/v1beta/openai/chat/completions
-spring.ai.openai.chat.options.model=gemini-2.0-flash
-```
-
-### 3. Chạy Backend
+### 2. Chạy Backend
 
 ```bash
 # Di chuyển vào thư mục gốc
@@ -78,7 +71,7 @@ mvn spring-boot:run
 
 Backend sẽ chạy tại: `http://localhost:8080`
 
-### 4. Chạy Frontend
+### 3. Chạy Frontend
 
 Mở terminal mới và chạy:
 
@@ -95,6 +88,14 @@ npm run dev
 
 Frontend sẽ chạy tại: `http://localhost:3000`
 
+### 4. Cấu Hình API Key
+
+1. Mở ứng dụng tại `http://localhost:3000`
+2. Click vào sidebar (biểu tượng menu)
+3. Trong phần "API Configuration", nhập API key của bạn
+4. Click "Lưu API Key"
+5. Bắt đầu sử dụng ứng dụng!
+
 ## Cấu Trúc Dự Án
 
 ```
@@ -103,6 +104,9 @@ hello-flash/
 │   ├── main/
 │   │   ├── java/backend/
 │   │   │   ├── Application.java              # Main class
+│   │   │   ├── config/
+│   │   │   │   ├── WebConfig.java            # CORS & RestTemplate config
+│   │   │   │   └── GlobalExceptionHandler.java # Global error handling
 │   │   │   ├── controller/
 │   │   │   │   ├── BookRecommendationController.java
 │   │   │   │   └── GeminiModelController.java
@@ -117,10 +121,11 @@ hello-flash/
 │   │   │       └── ChatSessionManager.java
 │   │   ├── frontend/                         # Next.js app
 │   │   │   ├── app/
-│   │   │   │   ├── api/recommend/route.ts
+│   │   │   │   ├── api/recommend/route.ts    # API proxy
 │   │   │   │   ├── layout.tsx
-│   │   │   │   └── page.tsx
+│   │   │   │   └── page.tsx                  # Main chat interface
 │   │   │   ├── components/
+│   │   │   │   ├── app-sidebar.tsx           # Session & API key management
 │   │   │   │   ├── MarkdownRenderer.tsx
 │   │   │   │   └── ui/                       # shadcn/ui components
 │   │   │   └── ...
@@ -135,8 +140,28 @@ hello-flash/
 
 ### Backend Endpoints
 
-- `POST /api/chat` - Gửi tin nhắn chat và nhận phản hồi từ AI
-- `GET /api/models` - Lấy danh sách các model Gemini có sẵn
+- `GET /health` - Health check endpoint
+- `POST /api/books/recommend` - Gửi tin nhắn chat và nhận phản hồi từ AI
+- `GET /models` - Lấy danh sách các model Gemini có sẵn
+
+### Request/Response Format
+
+#### POST /api/books/recommend
+```json
+// Request Headers
+Authorization: Bearer YOUR_GEMINI_API_KEY
+
+// Request Body
+{
+  "prompt": "Gợi ý sách trinh thám hay",
+  "sessionChatId": "uuid-session-id"
+}
+
+// Response
+{
+  "recommendation": "Markdown formatted book recommendations..."
+}
+```
 
 ### Frontend API Routes
 
@@ -149,13 +174,25 @@ hello-flash/
 - Phản hồi được format dưới dạng markdown
 - Lưu trữ lịch sử trò chuyện theo session
 
-### 2. Gợi Ý Sách Cá Nhân Hóa
+### 2. Session Management
+- Tạo nhiều phiên chat khác nhau
+- Lưu trữ lịch sử trò chuyện trong localStorage
+- Chuyển đổi giữa các phiên chat
+- Xóa phiên chat không cần thiết
+
+### 3. API Key Management
+- Người dùng tự nhập API key
+- Lưu trữ an toàn trong localStorage
+- Validation API key format
+- Giao diện ẩn/hiện API key
+
+### 4. Gợi Ý Sách Cá Nhân Hóa
 - Phân tích sở thích đọc sách của người dùng
 - Đưa ra danh sách sách phù hợp với từng cá nhân
 - Giải thích lý do gợi ý
 
-### 3. Giao Diện Người Dùng
-- Thiết kế hiện đại với dark/light mode
+### 5. Giao Diện Người Dùng
+- Thiết kế hiện đại với sidebar navigation
 - Responsive design cho mọi thiết bị
 - Loading states và error handling
 - Markdown rendering cho phản hồi AI
@@ -164,8 +201,8 @@ hello-flash/
 
 ### Backend
 - **Spring Boot 3.4.3**: Framework chính
-- **Spring AI**: Tích hợp AI với OpenAI-compatible APIs
 - **Spring Web**: RESTful web services
+- **RestTemplate**: HTTP client cho Gemini API
 - **Maven**: Dependency management
 
 ### Frontend
@@ -174,10 +211,11 @@ hello-flash/
 - **Tailwind CSS**: Utility-first CSS framework
 - **shadcn/ui**: Component library
 - **react-markdown**: Markdown rendering
+- **uuid**: Session ID generation
 
 ### AI & APIs
 - **Google Gemini**: AI model cho gợi ý sách
-- **OpenAI-compatible API**: Tương thích với Spring AI
+- **Gemini API**: OpenAI-compatible endpoints
 
 ## Phát Triển
 
@@ -205,19 +243,20 @@ npm run build
 
 ## Troubleshooting
 
-### Lỗi Thường Gặp
+### Lỗi API Key
+- Đảm bảo API key bắt đầu bằng "AIza"
+- Kiểm tra kết nối internet
+- Xác nhận API key có quyền truy cập Gemini API
 
-1. **"Unable to find a suitable main class"**
-   - Kiểm tra file `Application.java` có đúng package `dev.danvega.flash`
-   - Đảm bảo file nằm trong `src/main/java/backend/`
+### Lỗi Kết Nối
+- Kiểm tra backend đang chạy tại port 8080
+- Kiểm tra frontend đang chạy tại port 3000
+- Xem logs trong console để debug
 
-2. **API Key không hoạt động**
-   - Kiểm tra API key trong `application.properties`
-   - Đảm bảo có kết nối internet
-
-3. **Frontend không kết nối được backend**
-   - Kiểm tra backend đang chạy tại port 8080
-   - Kiểm tra CORS configuration
+### Lỗi Session
+- Xóa localStorage và thử lại
+- Tạo session mới
+- Kiểm tra browser compatibility
 
 ## Đóng Góp
 
